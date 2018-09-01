@@ -1,35 +1,11 @@
-// Copyright (c) 2017 Elvis Dukaj
-// 
-// Permission is hereby granted, free of charge, to any person
-// obtaining a copy of this software and associated documentation
-// files (the "Software"), to deal in the Software without
-// restriction, including without limitation the rights to use,
-// copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the
-// Software is furnished to do so, subject to the following
-// conditions:
-// 
-// The above copyright notice and this permission notice shall be
-// included in all copies or substantial portions of the Software.
-// 
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-// EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
-// OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-// NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
-// HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
-// WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
-// OTHER DEALINGS IN THE SOFTWARE.
-
 #include "markerdetector.h"
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
 
-using namespace cv;
 using namespace std;
 
-float perimeter(const std::vector<Point2f>& a)
+float perimeter(const std::vector<cv::Point2f>& a)
 {
     float sum=0, dx, dy;
 
@@ -46,9 +22,12 @@ float perimeter(const std::vector<Point2f>& a)
     return sum;
 }
 
-vector<Point2f> projectPoints(const vector<Point3f>& objectPoints, const Mat& rvec, const Mat& tvec, const Mat& cameraMatrix, const Mat& distCoeffs)
+vector<cv::Point2f> projectPoints(const vector<cv::Point3f>& objectPoints,
+                                  const cv::Mat& rvec, const cv::Mat& tvec,
+                                  const cv::Mat& cameraMatrix,
+                                  const cv::Mat& distCoeffs)
 {
-    vector<Point2f> points;
+    vector<cv::Point2f> points;
     cv::projectPoints(objectPoints, rvec, tvec, cameraMatrix, distCoeffs, points);
     return points;
 }
@@ -56,12 +35,12 @@ vector<Point2f> projectPoints(const vector<Point3f>& objectPoints, const Mat& rv
 MarksDetector::MarksDetector()
     : m_markerSize{240, 240}
 {
-    m_markerCorners2d.push_back(Point2f{0.0f,0.0f});
-    m_markerCorners2d.push_back(Point2f{static_cast<float>(m_markerSize.width),0.0f});
-    m_markerCorners2d.push_back(Point2f{static_cast<float>(m_markerSize.width),static_cast<float>(m_markerSize.height)});
-    m_markerCorners2d.push_back(Point2f{0.0f, static_cast<float>(m_markerSize.height)});
+    m_markerCorners2d.push_back(cv::Point2f{0.0f,0.0f});
+    m_markerCorners2d.push_back(cv::Point2f{static_cast<float>(m_markerSize.width),0.0f});
+    m_markerCorners2d.push_back(cv::Point2f{static_cast<float>(m_markerSize.width),static_cast<float>(m_markerSize.height)});
+    m_markerCorners2d.push_back(cv::Point2f{0.0f, static_cast<float>(m_markerSize.height)});
 
-    FileStorage fs("cameraCalibration.xml", FileStorage::READ);
+    cv::FileStorage fs("cameraCalibration.xml", cv::FileStorage::READ);
 
     fs["CameraMatrix"] >> m_cameraMatrix;
     fs["DistortionCoefficients"] >> m_distortion;
@@ -73,7 +52,7 @@ MarksDetector::MarksDetector()
     }
 }
 
-void MarksDetector::processFame(Mat& grayscale)
+void MarksDetector::processFame(cv::Mat& grayscale)
 {
     m_contours.clear();
     m_possibleContours.clear();
@@ -88,33 +67,33 @@ void MarksDetector::processFame(Mat& grayscale)
     estimatePose();
 }
 
-const std::vector<Marker> &MarksDetector::markers() const noexcept
+const std::vector<Marker>& MarksDetector::markers() const noexcept
 {
     return m_markers;
 }
 
-void MarksDetector::binarize(const Mat& grayscale)
+void MarksDetector::binarize(const cv::Mat& grayscale)
 {
     m_grayscale = grayscale;
-    threshold(m_grayscale, m_binarized, 127, 255.0, THRESH_BINARY | THRESH_OTSU);
+    threshold(m_grayscale, m_binarized, 127, 255.0, cv::THRESH_BINARY);
 }
 
 void MarksDetector::findContours()
 {
-    cv::findContours(m_binarized, m_contours, RETR_LIST, CHAIN_APPROX_NONE);
+    cv::findContours(m_binarized, m_contours, cv::RETR_LIST, cv::CHAIN_APPROX_NONE);
 }
 
 void MarksDetector::findCandidates()
 {
-    vector<Point2f> approxCurve;
-    vector<vector<Point2f>> possibleMarkerPoints;
+    vector<cv::Point2f> approxCurve;
+    vector<vector<cv::Point2f>> possibleMarkerPoints;
 
     // For each contour, analyze if it is a parallelepiped likely to be the marker
     for (size_t i=0; i < m_contours.size(); i++)
     {
         // Approximate to a polygon
         double eps = m_contours[i].size() * 0.05;
-        approxPolyDP(m_contours[i], approxCurve, eps, true);
+        cv::approxPolyDP(m_contours[i], approxCurve, eps, true);
 
         // We interested only in polygons that contains only four points
         if (approxCurve.size() != 4)
@@ -129,7 +108,7 @@ void MarksDetector::findCandidates()
 
         for (int i = 0; i < 4; i++)
         {
-            Point side = approxCurve[i] - approxCurve[(i+1)%4];
+            auto side = approxCurve[i] - approxCurve[(i+1)%4];
             float squaredSideLength = static_cast<float>(side.dot(side));
             minDist = std::min(minDist, squaredSideLength);
         }
@@ -139,7 +118,7 @@ void MarksDetector::findCandidates()
             continue;
 
         // All tests are passed. Save marker candidate:
-        vector<Point2f> markerPoints = approxCurve;
+        auto markerPoints = approxCurve;
 
         // Sort the points in anti-clockwise order
         // Trace a line between the first and second point.
@@ -207,21 +186,22 @@ void MarksDetector::recognizeCandidates()
 {
     for(auto& points: m_possibleContours)
     {
-        Mat canonicalMarkerImage;
+        cv::Mat canonicalMarkerImage;
 
         // Find the perspective transformation that brings current marker to rectangular form
-        Mat markerTransform = getPerspectiveTransform(points, m_markerCorners2d);
+        cv::Mat markerTransform = getPerspectiveTransform(points, m_markerCorners2d);
 
         // Transform image to get a canonical marker image
-        warpPerspective(m_binarized, canonicalMarkerImage,  markerTransform, m_markerSize);
+        cv::warpPerspective(m_binarized, canonicalMarkerImage,  markerTransform, m_markerSize);
 
         Marker m(canonicalMarkerImage, points);
 
         if (!m.isValid())
             continue;
 
-        TermCriteria termCriteria = TermCriteria{TermCriteria::MAX_ITER | TermCriteria::EPS, 30, 0.01};
-        cornerSubPix(m_grayscale, points, Size{5, 5}, Size{-1, -1}, termCriteria);
+        auto termCriteria = cv::TermCriteria{cv::TermCriteria::MAX_ITER |
+                            cv::TermCriteria::EPS, 30, 0.01};
+        cornerSubPix(m_grayscale, points, cv::Size{5, 5}, cv::Size{-1, -1}, termCriteria);
 
         m.precisePoints(points);
         m_markers.push_back(m);
@@ -232,13 +212,18 @@ void MarksDetector::estimatePose()
 {
     for(Marker& m : m_markers)
     {
-        vector<Point3f> objectPoints = {Point3f(-1, -1, 0), Point3f(-1, 1, 0), Point3f(1, 1, 0), Point3f(1, -1, 0)};
+        vector<cv::Point3f> objectPoints = {
+            cv::Point3f{-1, -1, 0},
+            cv::Point3f{-1, 1, 0},
+            cv::Point3f{1, 1, 0},
+            cv::Point3f{1, -1, 0}
+        };
 
-        Mat objectPointsMat(objectPoints);
-        Mat rvec, tvec;
+        cv::Mat objectPointsMat(objectPoints);
+        cv::Mat rvec, tvec;
         solvePnP(objectPointsMat, m.points(), m_cameraMatrix, m_distortion, rvec, tvec);
 
-        vector<vector<Point3f>> lineIn3D =
+        vector<vector<cv::Point3f>> lineIn3D =
         {
             {{-1.0f, -1.0f, 0.0f}, {-1.0f, -1.0f, 2.0f}},
             {{-1.0f,  1.0f, 0.0f}, {-1.0f,  1.0f, 2.0f}},
@@ -250,11 +235,11 @@ void MarksDetector::estimatePose()
             {{ 1.0f,  1.0f, 2.0f}, { 1.0f, -1.0f, 2.0f}}
         };
 
-        vector<vector<Point2f>> lineIn2D;
+        vector<vector<cv::Point2f>> lineIn2D;
         lineIn2D.reserve(lineIn3D.size());
 
         std::transform(begin(lineIn3D), end(lineIn3D), back_inserter(lineIn2D),
-                       [&,this](const vector<Point3f>& points3D)
+                       [&,this](const vector<cv::Point3f>& points3D)
         {
             return projectPoints(points3D, rvec, tvec, m_cameraMatrix, m_distortion);
         });

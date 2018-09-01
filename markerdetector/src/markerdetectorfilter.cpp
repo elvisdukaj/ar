@@ -59,14 +59,12 @@ QVideoFrame MarkerDetectorFilterRunnable::run(QVideoFrame* frame, const QVideoSu
 
         m_marksDetector.processFame(grayscale);
 
-
         string idStr;
         if (!m_marksDetector.markers().empty())
         {
             for(const Marker& marker : m_marksDetector.markers())
             {
                 idStr += to_string(marker.id()) + " "s;
-//              marker.drawImage(frameMat, m_pattern);
                 marker.drawContours(frameMat, 3);
             }
         }
@@ -79,7 +77,6 @@ QVideoFrame MarkerDetectorFilterRunnable::run(QVideoFrame* frame, const QVideoSu
     }
 
     frame->unmap();
-
 
     return *frame;
 }
