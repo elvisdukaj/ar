@@ -100,38 +100,10 @@ void MarksDetector::findCandidates()
             continue;
 
         // And they have to be convex
-        if (!isContourConvex(approxCurve))
+        if (!cv::isContourConvex(approxCurve))
             continue;
 
-        // Ensure that the distance between consecutive points is large enough
-        float minDist = std::numeric_limits<float>::max();
-
-        for (int i = 0; i < 4; i++)
-        {
-            auto side = approxCurve[i] - approxCurve[(i+1)%4];
-            float squaredSideLength = static_cast<float>(side.dot(side));
-            minDist = std::min(minDist, squaredSideLength);
-        }
-
-        // Check that distance is not very small
-        if (minDist < 500)
-            continue;
-
-        // All tests are passed. Save marker candidate:
-        auto markerPoints = approxCurve;
-
-        // Sort the points in anti-clockwise order
-        // Trace a line between the first and second point.
-        // If the third point is at the right side, then the points are anti-clockwise
-        auto v1 = markerPoints[1] - markerPoints[0];
-        auto v2 = markerPoints[2] - markerPoints[0];
-
-        double o = (v1.x * v2.y) - (v1.y * v2.x);
-
-        if (o < 0.0)		 // if the third point is in the left side, then sort in anti-clockwise order
-            std::swap(markerPoints[1], markerPoints[3]);
-
-        possibleMarkerPoints.emplace_back(markerPoints);
+        possibleMarkerPoints.emplace_back(approxCurve);
     }
 
     // calculate the average distance of each corner to the nearest corner of the other marker candidate
