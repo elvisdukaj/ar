@@ -31,12 +31,11 @@
 using namespace cv;
 using namespace std;
 
-Marker::Marker(const Mat& image, const vector<Point2f>& points)
+Marker::Marker(const Mat& image)
     : m_markerSize{image.size()}
     , m_squareSize{image.size() / 12}
     , m_minArea{m_squareSize.area() / 2}
     , m_isValid{false}
-    , m_points{points}
     , m_color{Scalar::all(255)}
 {
     m_undistortedPoints.emplace_back(0.0f,0.0f);
@@ -341,8 +340,8 @@ void Marker::encodeData(const Mat& dataImage)
 
     if (crcBits.to_ullong() != crc.checksum())
     {
-        cerr << "CRC Mismatch found " << dataBits.to_ullong() << " with crc "
-                 << crcBits.to_ullong() << " calculated " << crc.checksum() << endl;
+//        cerr << "CRC Mismatch found " << dataBits.to_ullong() << " with crc "
+//                 << crcBits.to_ullong() << " calculated " << crc.checksum() << endl;
         return;
     }
 

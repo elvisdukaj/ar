@@ -13,7 +13,8 @@ ApplicationWindow {
 
     Camera {
         id: camera
-        deviceId: QtMultimedia.availableCameras[1].deviceId
+//        deviceId: QtMultimedia.availableCameras[1].deviceId
+        deviceId: QtMultimedia.defaultCamera.deviceId
     }
 
     MarkerDetectorFilter {

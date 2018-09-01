@@ -2,6 +2,7 @@
 #include <opencv2/calib3d.hpp>
 #include <opencv2/imgproc.hpp>
 #include <iostream>
+#include <numeric>
 
 using namespace std;
 
@@ -75,7 +76,15 @@ const std::vector<Marker>& MarksDetector::markers() const noexcept
 void MarksDetector::binarize(const cv::Mat& grayscale)
 {
     m_grayscale = grayscale;
-    threshold(m_grayscale, m_binarized, 127, 255.0, cv::THRESH_BINARY);
+    threshold(m_grayscale, m_binarized, 200, 255.0, cv::THRESH_BINARY | cv::THRESH_OTSU);
+    //    cv::adaptiveThreshold(
+    //                m_grayscale, m_binarized,
+    //                255,
+    //                cv::ADAPTIVE_THRESH_GAUSSIAN_C,
+    //                cv::THRESH_BINARY,
+    //                17,
+    //                17
+    //                );
 }
 
 void MarksDetector::findContours()
@@ -103,23 +112,37 @@ void MarksDetector::findCandidates()
         if (!cv::isContourConvex(approxCurve))
             continue;
 
+        // distance between two points must be large enough
+        auto squaredMinDist = numeric_limits<float>::max();
+
+        for (auto i = 0; i < 4; ++i)
+        {
+            const auto side = approxCurve[i] - approxCurve[(i+1) % 4];
+            auto squaredSideLength = side.dot(side);
+            squaredMinDist = min(squaredMinDist, squaredSideLength);
+        }
+
+        if (squaredMinDist < 1600)
+            continue;
+
         possibleMarkerPoints.emplace_back(approxCurve);
     }
 
     // calculate the average distance of each corner to the nearest corner of the other marker candidate
-    std::vector< std::pair<int,int> > tooNearCandidates;
-    for (int i=0;i<possibleMarkerPoints.size();i++)
+    vector<pair<int,int> > tooNearCandidates;
+
+    for (auto i = 0u; i < size(possibleMarkerPoints); ++i)
     {
         const auto& points1 = possibleMarkerPoints[i];
 
         //calculate the average distance of each corner to the nearest corner of the other marker candidate
-        for (int j=i+1;j<possibleMarkerPoints.size();j++)
+        for (auto j = i+1; j < size(possibleMarkerPoints); ++j)
         {
             const auto& points2 = possibleMarkerPoints[j];
 
             float distSquared = 0;
 
-            for (int c = 0; c < 4; c++)
+            for (auto c = 0u; c < 4; c++)
             {
                 auto v = points1[c] - points2[c];
                 distSquared += v.dot(v);
@@ -127,7 +150,7 @@ void MarksDetector::findCandidates()
 
             distSquared /= 4;
 
-            if (distSquared < 100)
+            if (distSquared < 200)
                 tooNearCandidates.push_back(std::pair<int,int>(i,j));
         }
     }
@@ -166,13 +189,14 @@ void MarksDetector::recognizeCandidates()
         // Transform image to get a canonical marker image
         cv::warpPerspective(m_binarized, canonicalMarkerImage,  markerTransform, m_markerSize);
 
-        Marker m(canonicalMarkerImage, points);
+        Marker m{canonicalMarkerImage};
 
         if (!m.isValid())
             continue;
 
         auto termCriteria = cv::TermCriteria{cv::TermCriteria::MAX_ITER |
-                            cv::TermCriteria::EPS, 30, 0.01};
+                cv::TermCriteria::EPS, 100, 0.001};
+
         cornerSubPix(m_grayscale, points, cv::Size{5, 5}, cv::Size{-1, -1}, termCriteria);
 
         m.precisePoints(points);

@@ -6,7 +6,7 @@
 
 class Marker {
 public:
-    Marker(const cv::Mat& image, const std::vector<cv::Point2f>& points);
+    Marker(const cv::Mat& image);
 
     bool isValid() const noexcept { return m_isValid; }
     uint64_t id() const noexcept { return m_id; }
