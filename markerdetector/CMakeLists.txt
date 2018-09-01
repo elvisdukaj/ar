@@ -1,6 +1,5 @@
 cmake_minimum_required(VERSION 3.5)
 
-set (CMAKE_CXX_STANDARD 14)
 project(markerdetector LANGUAGES CXX)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -11,23 +10,25 @@ find_package(Qt5 COMPONENTS Core Quick Multimedia REQUIRED)
 find_package(OpenCV REQUIRED imgproc calib3d)
 find_package(Boost REQUIRED)
 
-include_directories(include)
-include_directories(${Boost_INCLUDE_DIRS})
+add_executable(${PROJECT_NAME}
+    "include/abstractopencvrunnablefilter.h"
+    "include/marker.h"
+    "include/markerdetector.h"
+    "include/markerdetectorfilter.h"
+    "src/abstractopencvrunnablefilter.cpp"
+    "src/marker.cpp"
+    "src/markerdetector.cpp"
+    "src/markerdetectorfilter.cpp"
+    "src/main.cpp"
+    "resource/qml.qrc"
+    )
 
-if(WIN32)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS)
-endif(WIN32)
-
-file(GLOB HEADERS_FILES "include/*.h*")
-file(GLOB RESOURCES_FILES "resource/*.qrc")
-file(GLOB SOURCE_FILES "src/*.cpp")
-set(SOURCES ${HEADERS_FILES} ${SOURCE_FILES} ${RESOURCES_FILES})
-
-add_executable(${PROJECT_NAME} "${SOURCES}")
-
+target_include_directories(${PROJECT_NAME} PRIVATE include)
+target_compile_features(${PROJECT_NAME} PRIVATE cxx_std_17)
 target_link_libraries(${PROJECT_NAME}
+    Boost::boost
     Qt5::Core
     Qt5::Quick
     Qt5::Multimedia
     ${OpenCV_LIBS}
-    )
+)

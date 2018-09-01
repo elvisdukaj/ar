@@ -1,12 +1,12 @@
 cmake_minimum_required(VERSION 3.11)
 
-project(markergen)
+project(markergen LANGUAGES CXX)
 
-set(HEADERS_FILES "include/options.hpp")
-set(SOURCE_FILES "src/options.cpp" "src/main.cpp")
-set(SOURCES ${HEADERS_FILES} ${SOURCE_FILES} ${RESOURCES_FILES})
-
-add_executable(${PROJECT_NAME} ${SOURCES})
+add_executable(${PROJECT_NAME}
+    "include/options.hpp"
+    "src/options.cpp"
+    "src/main.cpp"
+)
 
 find_package(OpenCV REQUIRED highgui)
 find_package(Boost COMPONENTS program_options REQUIRED)

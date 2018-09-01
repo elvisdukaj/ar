@@ -24,17 +24,6 @@ ApplicationWindow {
         }
     }
 
-    Timer {
-        id: timer
-        interval: 2000
-        running: false
-        repeat: false
-
-        onTriggered: {
-            calibrationFilter.showNegative = false;
-        }
-    }
-
     VideoOutput {
         id: videoOutput
         source: camera
